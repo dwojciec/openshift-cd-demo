@@ -1,0 +1,99 @@
+name : airline-api-test-acc-prod-pipeline
+parameter : projectname, username password gittag
+
+
+node('maven') {
+   def branch = 'master'
+   def application ='airline-api'
+   def acceptance = 'acceptance'
+   def production = 'production'
+  // def mvnCmd = "mvn -s configuration/cicd-settings.xml"
+  def mvnCmd = "mvn"
+//Stage TEST
+    stage 'Create Test'
+    sh "oc new-project ${projectname}"
+    sh "oc policy add-role-to-group edit system:authenticated -n ${projectname}"
+    sh "oc delete bc,dc,is,svc,route -l app=${application} -n ${projectname}"
+    sh "oc delete secret gitsecret -n ${projectname} || true"
+//Create policy into the project
+  //  sh "oc policy add-role-to-group edit system:authenticated -n ${projectname}"
+ 
+  //Create secret from basis auth
+    sh "oc secrets new-basicauth gitsecret --username=${username} --password=${password} -n ${projectname}"
+    sh "oc new-app infra/jboss:latest~http://145.35.89.242:7990/scm/pubflt/airline-api.git#${branch} --name=${application} -n  ${projectname} || true"   
+    sh "oc secrets add serviceaccount/builder secrets/gitsecret -n ${projectname}"
+    sh "oc patch bc/${application} --patch='{\"spec\": { \"source\": { \"sourceSecret\": { \"name\": \"gitsecret\" }} } }' -n ${projectname}"
+ //create a build            
+    sh "oc start-build ${application} -n ${projectname}"
+
+//Use project public-flights-test
+
+//Checkout master branch and tag the checkout in git
+git changelog: false, credentialsId: 'ci_user_ssh', poll: false, url: 'ssh://git@145.35.89.242:7999/pubflt/airline-api.git'
+//git tag and remind tag in the pipeline for the process when the tag in test is promoted to acceptance
+sh "git tag ${gittag}"
+// sh "git push origin master --tags"
+
+
+
+//Stage ACCEPTANCE
+    stage 'deploy Acceptance'
+    input message: "Promote to ACCEPTANCE?", ok: "Promote"
+    def pom = readMavenPom file : 'pom.xml'
+    def version = pom.version.replace("-SNAPSHOT", ".${currentBuild.number}")
+
+    echo version
+    
+  //  sh "${mvnCmd} -X -DreleaseVersion=${version} -DdevelopmentVersion=${pom.version} -DpushChanges=false -DlocalCheckout=true -DpreparationGoals=initialize release:prepare release:perform -B"
+
+//    sh "${mvnCmd} -B release:perform"
+    
+   
+    sh "${mvnCmd} deploy -DskipTests=true"
+
+    sh "rm -rf oc-build && mkdir -p oc-build/deployments"
+    sh "cp target/${application}.war oc/deployments/ROOT.war"
+    sh "oc new-project ${acceptance}"
+ //Create policy into the project
+    sh "oc policy add-role-to-group edit system:authenticated -n ${acceptance}"
+
+   // clean up. keep the imagestream
+    sh "oc delete bc,dc,svc,route -l app=${application} -n ${acceptance}"
+   //deploy acceptance image
+   // create build
+    sh "oc new-build --name=${application} --image-stream=infra/jboss:latest --binary=true --labels=app=${application} -n ${acceptance} || true"
+   // build image
+    sh "oc start-build ${application} --from-dir=oc-build --wait=true -n dev"
+   //deploy image
+   
+//Get the approved tag from test 
+
+//Checkout build with tag
+
+//Push formal version to nexus
+
+//Build to Acceptance from nexus 
+
+
+
+
+//Stage Production
+    stage 'deploy production'
+    input message: "Promote to PRODUCTION?", ok: "Promote"
+    sh "oc new-project ${production}"
+ //Create policy into the project
+    sh "oc policy add-role-to-group edit system:authenticated -n ${production}"
+    sh "oc tag ${acceptance}/${application}:latest ${production}/${application}:${v}"
+   // clean up. keep the imagestream
+    sh "oc delete bc,dc,svc,route -l app=${application} -n ${production}"
+   //deploy acceptance image
+    sh "oc new-app ${application}:${v} -n ${production}"
+//Promote image to production imagestream
+}
+
+ def version() {
+            def pom = readMavenPom file : 'pom.xml'
+            def version1 = pom.version.replace("-SNAPSHOT", ".${currentBuild.number}")
+
+           
+          }
