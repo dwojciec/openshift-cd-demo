@@ -1,0 +1,42 @@
+name airline-api-dev
+parameter projectname username password branch
+
+
+
+node('maven') {
+             // define commands
+             def mvnCmd = "mvn -s configuration/cicd-settings.xml"
+             stage 'Deploy DEV'
+             sh "oc new-project ${projectname}"
+             
+             //Create policy into the project
+             sh "oc policy add-role-to-group edit system:authenticated -n ${projectname}"
+             
+             
+             //Create secret from basis auth
+             sh "oc secrets new-basicauth gitsecret --username=${username} --password=${password}"
+             //sh "oc secrets add serviceaccount/builder secrets/gitsecret"
+             //sh "oc set build-secret gitsecret bc/airline-api"
+             
+            
+     //        sh "${ocCmd} new-build --name=airline-api --image-stream=infra/jboss:latest --labels=app=airline-api -n dev || true"
+            // sh "oc new-app --code=http://${username}:${password}@145.35.89.242:7990/scm/pubflt/airline-api.git --image-stream=infra/jboss:latest --name=airline-api -n  ${projectname}"
+        //      sh "oc new-app --code=http://145.35.89.242:7990/scm/pubflt/airline-api.git --image-stream=infra/jboss:latest --name=airline-api -n  ${projectname} || true"
+               sh "oc new-app infra/jboss:latest~http://145.35.89.242:7990/scm/pubflt/airline-api.git#${branch} --name=airline-api -n  ${projectname} || true"   
+            sh "oc secrets add serviceaccount/builder secrets/gitsecret"
+            sh "oc patch bc/airline-api --patch='{\"spec\": { \"source\": { \"sourceSecret\": { \"name\": \"gitsecret\" }} } }' "
+             
+              //build image (needs to be run from eclipse to stream code into the app)
+             //sh "oc start-build airline-api --from-dir=oc-build --wait=true --follow -n  ${projectname}"
+             
+             
+              //deploy image
+             //sh "oc new-app airline-api:latest -n  ${projectname}"
+             
+           
+          }
+
+          def version() {
+            def matcher = readFile('pom.xml') =~ '<version>(.+)</version>'
+            matcher ? matcher[0][1] : null
+          }
