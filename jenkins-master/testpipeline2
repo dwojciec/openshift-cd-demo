@@ -20,7 +20,7 @@ node('maven') {
  
   //Create secret from basis auth
     sh "oc secrets new-basicauth gitsecret --username=${username} --password=${password} -n ${projectname}"
-    sh "oc new-app infra/jboss:latest~http://145.35.89.242:7990/scm/pubflt/airline-api.git#${branch} --name=${application} -n  ${projectname} || true"   
+    sh "oc new-app infra/jboss:latest~http://IP:7990/scm/pubflt/airline-api.git#${branch} --name=${application} -n  ${projectname} || true"   
     sh "oc secrets add serviceaccount/builder secrets/gitsecret -n ${projectname}"
     sh "oc patch bc/${application} --patch='{\"spec\": { \"source\": { \"sourceSecret\": { \"name\": \"gitsecret\" }} } }' -n ${projectname}"
  //create a build            
@@ -29,7 +29,7 @@ node('maven') {
 //Use project public-flights-test
 
 //Checkout master branch and tag the checkout in git
-git changelog: false, credentialsId: 'ci_user_ssh', poll: false, url: 'ssh://git@145.35.89.242:7999/pubflt/airline-api.git'
+git changelog: false, credentialsId: 'ci_user_ssh', poll: false, url: 'ssh://git@IP:7999/pubflt/airline-api.git'
 //git tag and remind tag in the pipeline for the process when the tag in test is promoted to acceptance
 sh "git tag ${gittag}"
 // sh "git push origin master --tags"
