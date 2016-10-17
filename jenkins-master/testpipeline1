@@ -20,9 +20,9 @@ node('maven') {
              
             
      //        sh "${ocCmd} new-build --name=airline-api --image-stream=infra/jboss:latest --labels=app=airline-api -n dev || true"
-            // sh "oc new-app --code=http://${username}:${password}@145.35.89.242:7990/scm/pubflt/airline-api.git --image-stream=infra/jboss:latest --name=airline-api -n  ${projectname}"
-        //      sh "oc new-app --code=http://145.35.89.242:7990/scm/pubflt/airline-api.git --image-stream=infra/jboss:latest --name=airline-api -n  ${projectname} || true"
-               sh "oc new-app infra/jboss:latest~http://145.35.89.242:7990/scm/pubflt/airline-api.git#${branch} --name=airline-api -n  ${projectname} || true"   
+            // sh "oc new-app --code=http://${username}:${password}@IP:7990/scm/pubflt/airline-api.git --image-stream=infra/jboss:latest --name=airline-api -n  ${projectname}"
+        //      sh "oc new-app --code=http://IP:7990/scm/pubflt/airline-api.git --image-stream=infra/jboss:latest --name=airline-api -n  ${projectname} || true"
+               sh "oc new-app infra/jboss:latest~http://IP:7990/scm/pubflt/airline-api.git#${branch} --name=airline-api -n  ${projectname} || true"   
             sh "oc secrets add serviceaccount/builder secrets/gitsecret"
             sh "oc patch bc/airline-api --patch='{\"spec\": { \"source\": { \"sourceSecret\": { \"name\": \"gitsecret\" }} } }' "
              
